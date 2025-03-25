@@ -56,17 +56,22 @@ const CryptographyForm = () => {
     formData.append('action', action);
     formData.append('password', password);
     if (file) formData.append('file', file);
-
+  
     try {
-      const response = await fetch('/pages/api/cryptography', {
+      const response = await fetch('/api/cryptography', {
         method: 'POST',
         body: formData,
       });
-
+  
       const result = await response.json();
-      setMessage(result.message || result.error);
+      if (response.ok) {
+        setMessage(result.message || 'Operação realizada com sucesso');
+      } else {
+        setMessage(result.error || 'Erro desconhecido ao processar a solicitação');
+      }
     } catch (error) {
-      setMessage('Erro ao processar a solicitação.');
+      console.error('Erro no cliente:', error);
+      setMessage('Erro ao processar a solicitação: ' + error.message);
     }
   };
 
