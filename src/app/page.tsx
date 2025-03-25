@@ -1,9 +1,10 @@
 import CryptographyForm from '../components/CryptographyForm';
+import "../styles/globalsStyles";
 
 export default function Home() {
   return (
     <div>
-      <h1>Criptografia com Next.js</h1>
+      <center><h1>CryptoGuard</h1></center>
       <CryptographyForm />
     </div>
   );

@@ -1,176 +1,287 @@
 "use client";
 
-import { useState } from 'react';
-import styled from 'styled-components';
-
-const FormContainer = styled.div`
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  max-width: 400px;
-  margin: 20px auto;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  margin-bottom: 10px;
-  color: #555;
-`;
-
-const Input = styled.input`
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-  margin-bottom: 20px;
-  &:focus {
-    border-color: #333;
-  }
-`;
-
-const Button = styled.button`
-  padding: 10px;
-  border-radius: 4px;
-  border: none;
-  background: #333;
-  color: #fff;
-  cursor: pointer;
-  margin-bottom: 10px;
-  &:hover {
-    background: #555;
-  }
-`;
+import React, { useState } from 'react';
 
 const CryptographyForm = () => {
-  const [file, setFile] = useState(null);
-  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [action, setAction] = useState('encrypt');
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [name, setName] = useState('');
-  const [userPassword, setUserPassword] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [file, setFile] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const toggleForm = () => {
+    setIsLogin(!isLogin);
+    setMessage('');
+  };
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0] || null);
+    setFile(e.target.files[0]);
   };
 
-  const handleLogin = async (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', name: name || '', password: userPassword || '' }),
-    });
+    const actionType = isLogin ? 'login' : 'register';
+    const data = { action: actionType, name: email, password };
 
-    const result = await response.json();
-    if (result.success) {
-      alert(result.data.name + " logado com sucesso!");
-      setLoggedIn(true);
-    } else {
-      alert(result.error);
+    if (!isLogin && password !== confirmPassword) {
+      setMessage('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setMessage(actionType === 'login' ? 'Login successful' : 'Registration successful');
+        if (actionType === 'login') setIsLoggedIn(true);
+      } else {
+        setMessage(result.error || 'An error occurred');
+      }
+    } catch (error) {
+      setMessage('Erro ao processar a solicitação.');
     }
   };
 
-  const handleRegister = async (e) => {
+  const handleCryptoSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', name: name || '', password: userPassword || '' }),
-    });
-
-    const result = await response.json();
-    if (result.success) {
-      alert("Usuário registrado com sucesso!");
-      setIsRegistering(false);
-    } else {
-      alert(result.error);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('password', password);
     formData.append('action', action);
+    formData.append('password', password);
+    if (file) formData.append('file', file);
 
-    const response = await fetch('/api/cryptography', {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      const response = await fetch('/pages/api/cryptography', {
+        method: 'POST',
+        body: formData,
+      });
 
-    const result = await response.json();
-    alert(result.message + (result.hash ? `\nHash: ${result.hash}` : ''));
+      const result = await response.json();
+      setMessage(result.message || result.error);
+    } catch (error) {
+      setMessage('Erro ao processar a solicitação.');
+    }
   };
 
   return (
-    <FormContainer>
-      {!loggedIn ? (
-        isRegistering ? (
-          <Form onSubmit={handleRegister}>
-            <Label>
-              Nome:
-              <Input type="text" value={name || ''} onChange={(e) => setName(e.target.value)} />
-            </Label>
-            <Label>
-              Senha:
-              <Input type="password" value={userPassword || ''} onChange={(e) => setUserPassword(e.target.value)} />
-            </Label>
-            <Button type="submit">Registrar</Button>
-            <Button type="button" onClick={() => setIsRegistering(false)}>Já possui uma conta? Faça login</Button>
-          </Form>
-        ) : (
-          <Form onSubmit={handleLogin}>
-            <Label>
-              Nome:
-              <Input type="text" value={name || ''} onChange={(e) => setName(e.target.value)} />
-            </Label>
-            <Label>
-              Senha:
-              <Input type="password" value={userPassword || ''} onChange={(e) => setUserPassword(e.target.value)} />
-            </Label>
-            <Button type="submit">Login</Button>
-            <Button type="button" onClick={() => setIsRegistering(true)}>Registrar-se</Button>
-          </Form>
-        )
+    <div className="container">
+      {isLoggedIn ? (
+        <form onSubmit={handleCryptoSubmit} className="crypto-form">
+          <h1 className="form-title">Crypto-Terminal</h1>
+          <div className="input-group">
+            <label htmlFor="file">Upload Data</label>
+            <input type="file" id="file" onChange={handleFileChange} required />
+          </div>
+          <div className="input-group">
+            <label htmlFor="password">Key</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <label htmlFor="action">Operation</label>
+            <select
+              id="action"
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              required
+            >
+              <option value="encrypt">Encrypt</option>
+              <option value="decrypt">Decrypt</option>
+            </select>
+          </div>
+          <button type="submit" className="submit-btn">
+            {action === 'encrypt' ? 'Encrypt' : 'Decrypt'}
+          </button>
+        </form>
       ) : (
-        <Form onSubmit={handleSubmit}>
-          <Label>
-            Selecione o arquivo:
-            <Input type="file" onChange={handleFileChange} />
-          </Label>
-          <Label>
-            Senha:
-            <Input type="password" value={password || ''} onChange={(e) => setPassword(e.target.value)} />
-          </Label>
-          <Label>
-            <Input
-              type="radio"
-              value="encrypt"
-              checked={action === 'encrypt'}
-              onChange={() => setAction('encrypt')}
+        <form onSubmit={handleAuthSubmit} className="auth-form">
+          <h1 className="form-title">
+            {isLogin ? '' : 'Initialize Node'}
+          </h1>
+          <div className="input-group">
+            <label htmlFor="email">E-mail:</label>
+            <input
+              type="email"
+              id="email"
+              placeholder="user@domain.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
-            Criptografar
-          </Label>
-          <Label>
-            <Input
-              type="radio"
-              value="decrypt"
-              checked={action === 'decrypt'}
-              onChange={() => setAction('decrypt')}
+          </div>
+          <div className="input-group">
+            <label htmlFor="password">Password: </label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
-            Descriptografar
-          </Label>
-          <Button type="submit">Processar</Button>
-        </Form>
+          </div>
+          {!isLogin && (
+            <div className="input-group">
+              <label htmlFor="confirmPassword">Verify Passcode</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          <button type="submit" className="submit-btn">
+            {isLogin ? 'Login' : 'Register'}
+          </button>
+          <p className="toggle-text">
+            {isLogin ? (
+              <> Create an account <a onClick={toggleForm}>here</a></>
+            ) : (
+              <> Already have an account? <a onClick={toggleForm}>Access here</a></>
+            )}
+          </p>
+        </form>
       )}
-    </FormContainer>
+      {message && <p className="message">{message}</p>}
+
+      <style jsx>{`
+        .container {
+          max-width: 450px;
+          margin: 50px auto;
+          padding: 70px;
+          padding-left: 50px;
+          background: #1C2526; /* Dark background similar to the image */
+          border: 3px solid #00A3E0; /* Electric blue border */
+          border-radius: 10px;
+          box-shadow: 0 0 20px rgba(0, 163, 224, 0.5); /* Blue glow */
+          animation: glowPulse 1.5s infinite alternate;
+        }
+
+        .form-title {
+          font-size: 24px;
+          color: #FFFFFF; /* White text */
+          text-align: center;
+          margin-bottom: 25px;
+          font-family: 'Orbitron', sans-serif;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          text-shadow: 0 0 10px rgba(0, 163, 224, 0.7); /* Blue glow on text */
+        }
+
+        .input-group {
+          margin-bottom: 20px;
+          position: relative;
+        }
+
+        label {
+          display: block;
+          color: #FFFFFF; /* White text for labels */
+          margin-bottom: 10px;
+          padding-left: 5px;
+          font-family: 'Roboto Mono', monospace;
+          font-size: 14px;
+          text-transform: uppercase;
+        }
+
+        input, select {
+          width: 100%;
+          padding: 12px;
+          background: #2A3435; /* Slightly lighter dark shade for inputs */
+          border: 1px solid #00A3E0; /* Blue border */
+          border-radius: 5px;
+          color: #FFFFFF; /* White text */
+          font-family: 'Roboto Mono', monospace;
+          font-size: 16px;
+          transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+          border-color: #00BFFF; /* Brighter blue on focus */
+          box-shadow: 0 0 10px rgba(0, 163, 224, 0.5); /* Blue glow on focus */
+          outline: none;
+        }
+
+        .submit-btn {
+          width: 100%;
+          padding: 12px;
+          padding-left: 20px;
+          margin-left: 11px;
+          background: #000000; /* Black button background */
+          border: 1px solid #00A3E0; /* Blue border */
+          border-radius: 5px;
+          color: #FFFFFF; /* White text */
+          font-family: 'Orbitron', sans-serif;
+          font-size: 16px;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.4s ease;
+          box-shadow: 0 0 15px rgba(0, 163, 224, 0.5); /* Blue glow */
+        }
+
+        .submit-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 0 25px rgba(0, 163, 224, 0.8); /* Brighter blue glow on hover */
+        }
+
+        .toggle-text {
+          text-align: center;
+          color: #FFFFFF; /* White text */
+          margin-top: 20px;
+          font-family: 'Roboto Mono', monospace;
+        }
+
+        a {
+          color: #00A3E0; /* Blue links */
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        a:hover {
+          text-shadow: 0 0 10px rgba(0, 163, 224, 0.7); /* Blue glow on hover */
+        }
+
+        .message {
+          text-align: center;
+          color:rgb(43, 255, 0); /* Soft red for messages/errors */
+          margin-top: 20px;
+          font-family: 'Roboto Mono', monospace;
+          animation: fadeIn 0.5s ease-in;
+        }
+
+        .message.error {
+          text-align: center;
+          color:rgb(255, 0, 0); /* Soft red for messages/errors */
+          margin-top: 20px;
+          font-family: 'Roboto Mono', monospace;
+          animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes glowPulse {
+          0% { box-shadow: 0 0 20px rgba(0, 163, 224, 0.5); }
+          100% { box-shadow: 0 0 30px rgba(0, 163, 224, 0.8); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 };
 
